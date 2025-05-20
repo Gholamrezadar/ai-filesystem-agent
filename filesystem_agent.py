@@ -1,28 +1,45 @@
 import asyncio
+from urllib import response
+from click import prompt
 from dotenv import load_dotenv
 import os
+from pathlib import Path
 
 from pydantic_ai import Agent, ModelRetry, RunContext
 from pydantic import BaseModel
-from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.models.openai import OpenAIModel 
+from pydantic_ai.models.gemini import GeminiModel 
 from pydantic_ai.providers.openai import OpenAIProvider
 import logfire
 
+from arithmetic_eval import evaluate
+
+## Setup
 load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-
 logfire.configure(send_to_logfire='if-token-present')
 logfire.instrument_pydantic_ai()
 
 agent = Agent(
+    # Google
+    # GeminiModel(model_name='gemini-2.0-flash-lite-preview-02-05', provider='google-gla'),
+
+    # Ollama
     OpenAIModel(
         model_name="llama3.2:1b",
         provider=OpenAIProvider(base_url='http://localhost:11434/v1')
     ),
-    instructions="You are a helpful assistant that answers questions based on the provided context."
+
+    instructions=(
+        "You are a helpful assistant that does what they are asked to do. You have access to the following tools:\n\n- calculator: Calculates the result of an expression using Python's eval() function.\n- create_file: Creates a new file with the given path and content.\n\n"
+        "If you are asked to use the calcuator tool, dont try to explain, just use the tool and return only the result. example: 2+2=4.0\n\n"
+        "If you are asked to use the create_file tool, dont try to explain the user how to do it, just use the tool tell the user that you created the file successfully.\n\n"
+        "never answer the user directly, only use the tools. If you are tasked to do something that you can't, just say you can't do it. example: I can't do that, I'm sorry.\n\n"
+    ),
+    retries=3
 )
 
-
+## Tools
 @agent.tool
 async def calculator(ctx: RunContext[None], expression: str) -> float:
     '''Calculates the result of an expression using Python's eval() function.
@@ -33,10 +50,64 @@ async def calculator(ctx: RunContext[None], expression: str) -> float:
     Returns:
         float: The result of the expression.
     '''
-    # safety checks
-    # TODO
-    return float(eval(expression))
+    try:
+        return float(evaluate(expression))
+    except Exception as e:
+        raise ValueError(f"Invalid expression: {e}")
+
+@agent.tool
+async def create_file(ctx: RunContext[None], path: str, content: str) -> str:
+    '''Creates a new file with the given path and content.
+    
+    Args:
+        path (str): The path of the file to create.
+        content (str): The content of the file to create.
+    
+    Returns:
+        path (str): The path of the created file.
+    '''
+
+    # create test_folder if it doesn't exist
+    Path("test_folder").mkdir(parents=True, exist_ok=True)
+
+    # for safety reasons, we prepend the path with the test_folder directory
+    file_path = Path(os.path.join("test_folder", path))
+
+    # check if the starts with test_folder (to prevent directory traversal)
+    if file_path.parts[0] != "test_folder":
+        raise ValueError(f"For security reasons, the path must be relative to the test_folder directory.", file_path)
+
+    # check if the file already exists
+    if file_path.exists():
+        raise ValueError(f"File already exists: {path}")
+
+    # create the required directories if they don't exist
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    # create the file
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write(content)
+    
+    return str(file_path) 
 
 
-response = agent.run_sync("What is the result of 2 + 2?")
-print(response.output)
+def main():
+    # print("- " * 10)
+    # prompt = "What is the result of 2 + 2?"
+    # print("Prompt:", prompt)
+    # response = agent.run_sync(prompt)
+    # print(response.output)
+    # print(response.usage())
+
+    print("- " * 10)
+    prompt = "Create a new file called `pi.txt` with the content begin the first 10 digits of PI"
+    print("Prompt:", prompt)
+    response = agent.run_sync(prompt)
+    print(response.output)
+    print(response.usage())
+
+## Main REPL
+if __name__ == "__main__":
+    main()
+    # response = agent.run_sync("What is the result of 2 + 2?")
+    # print(response.output)
