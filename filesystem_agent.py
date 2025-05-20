@@ -90,8 +90,67 @@ async def create_file(ctx: RunContext[None], path: str, content: str) -> str:
     
     return str(file_path) 
 
+@agent.tool
+async def rename_file(ctx: RunContext[None], old_path: str, new_path: str) -> str:
+    '''Renames a file.
+    
+    Args:
+        old_path (str): The path of the file to rename.
+        new_path (str): The new path of the file.
+    
+    Returns:
+        path (str): The path of the renamed file.
+    '''
+    # for safety reasons, we prepend the path with the test_folder directory
+    old_file_path = Path(os.path.join("test_folder", old_path))
+    new_file_path = Path(os.path.join("test_folder", new_path))
+
+    # check if the starts with test_folder (to prevent directory traversal)
+    if old_file_path.parts[0] != "test_folder":
+        raise ValueError(f"For security reasons, the path must be relative to the test_folder directory.", old_file_path)
+    if new_file_path.parts[0] != "test_folder":
+        raise ValueError(f"For security reasons, the path must be relative to the test_folder directory.", new_file_path)
+
+    # check if the file exists
+    if not old_file_path.exists():
+        raise ValueError(f"File does not exist: {old_path}")
+
+    # create the parent folders of new_file_path
+    new_file_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # rename the file
+    old_file_path.rename(new_file_path)
+    
+    return str(new_file_path)
+
+@agent.tool
+async def delete_file(ctx: RunContext[None], path: str) -> str:
+    '''Deletes a file.
+    
+    Args:
+        path (str): The path of the file to delete.
+    
+    Returns:
+        path (str): The path of the deleted file.
+    '''
+    # for safety reasons, we prepend the path with the test_folder directory
+    file_path = Path(os.path.join("test_folder", path))
+
+    # check if the starts with test_folder (to prevent directory traversal)
+    if file_path.parts[0] != "test_folder":
+        raise ValueError(f"For security reasons, the path must be relative to the test_folder directory.", file_path)
+
+    # check if the file exists
+    if not file_path.exists():
+        raise ValueError(f"File does not exist: {path}")
+
+    # delete the file
+    file_path.unlink()
+    
+    return str(file_path)
 
 def main():
+    # calculator tool test
     # print("- " * 10)
     # prompt = "What is the result of 2 + 2?"
     # print("Prompt:", prompt)
@@ -99,15 +158,39 @@ def main():
     # print(response.output)
     # print(response.usage())
 
+    # create_file tool test
+    # print("- " * 10)
+    # prompt = "Create a new file called `pi.txt` with the content begin the first 10 digits of PI"
+    # print("Prompt:", prompt)
+    # response = agent.run_sync(prompt)
+    # print(response.output)
+    # print(response.usage())
+
+    # rename_file tool test
     print("- " * 10)
-    prompt = "Create a new file called `pi.txt` with the content begin the first 10 digits of PI"
+    prompt = "Rename the file `pi.txt` to `pi2.txt`"
     print("Prompt:", prompt)
     response = agent.run_sync(prompt)
     print(response.output)
     print(response.usage())
 
-## Main REPL
+    # delete_file tool test
+    # print("- " * 10)
+    # prompt = "Delete the file `pi2.txt`"
+    # print("Prompt:", prompt)
+    # response = agent.run_sync(prompt)
+    # print(response.output)
+    # print(response.usage())
+
+
+    # REPL
+    # while True:
+    #     user_input = input(">> ")
+    #     response = agent.run_sync(user_input)
+    #     print("AI:", response.output)
+    #     print(response.usage())
+    #     print("- "*20)
+
+
 if __name__ == "__main__":
     main()
-    # response = agent.run_sync("What is the result of 2 + 2?")
-    # print(response.output)
