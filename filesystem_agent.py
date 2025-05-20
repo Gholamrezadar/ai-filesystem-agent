@@ -22,18 +22,24 @@ logfire.instrument_pydantic_ai()
 
 agent = Agent(
     # Google
-    # GeminiModel(model_name='gemini-2.0-flash-lite-preview-02-05', provider='google-gla'),
+    GeminiModel(model_name='gemini-2.0-flash-lite-preview-02-05', provider='google-gla'),
 
     # Ollama
-    OpenAIModel(
-        model_name="llama3.2:1b",
-        provider=OpenAIProvider(base_url='http://localhost:11434/v1')
-    ),
+    # OpenAIModel(
+    #     model_name="llama3.2:1b",
+    #     provider=OpenAIProvider(base_url='http://localhost:11434/v1')
+    # ),
 
     instructions=(
-        "You are a helpful assistant that does what they are asked to do. You have access to the following tools:\n\n- calculator: Calculates the result of an expression using Python's eval() function.\n- create_file: Creates a new file with the given path and content.\n\n"
+        "You are a helpful assistant that does what they are asked to do. You have access to the following tools:\n\n"
+        "- calculator: Calculates the result of an expression using Python's eval() function.\n"
+        "- create_file: Creates a new file with the given path and content.\n"
+        "- rename_file: Renames a file to another name.\n"
+        "- delete_file: deletes a file \n\n"
         "If you are asked to use the calcuator tool, dont try to explain, just use the tool and return only the result. example: 2+2=4.0\n\n"
         "If you are asked to use the create_file tool, dont try to explain the user how to do it, just use the tool tell the user that you created the file successfully.\n\n"
+        "If you are asked to rename a file, don't explain anything, just use the rename_file tool to rename the file make sure to pass the current name and new name AS IS without prepending any directory to them. then tell the user that you successfully renamed file a to b\n\n"
+        "If you are asked to remove a file, don't say things like I can't and don't warn the user, they already know what they are doing, delete the file using the delete_file tool and say I deleted the file successfully.\n\n"
         "never answer the user directly, only use the tools. If you are tasked to do something that you can't, just say you can't do it. example: I can't do that, I'm sorry.\n\n"
     ),
     retries=3
@@ -167,21 +173,20 @@ def main():
     # print(response.usage())
 
     # rename_file tool test
-    print("- " * 10)
-    prompt = "Rename the file `pi.txt` to `pi2.txt`"
-    print("Prompt:", prompt)
-    response = agent.run_sync(prompt)
-    print(response.output)
-    print(response.usage())
-
-    # delete_file tool test
     # print("- " * 10)
-    # prompt = "Delete the file `pi2.txt`"
+    # prompt = "Rename the file `pi.txt` to `pi2.txt`"
     # print("Prompt:", prompt)
     # response = agent.run_sync(prompt)
     # print(response.output)
     # print(response.usage())
 
+    # delete_file tool test
+    print("- " * 10)
+    prompt = "Delete the file `a.txt`"
+    print("Prompt:", prompt)
+    response = agent.run_sync(prompt)
+    print(response.output)
+    print(response.usage())
 
     # REPL
     # while True:
