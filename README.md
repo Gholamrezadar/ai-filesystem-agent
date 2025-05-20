@@ -2,9 +2,11 @@
 
 An AI filesystem agent that can choose to use tools on your filesystem.
 
-![demo](demos/demo.png)
+[![demo](demos/demo.png)](https://youtube.com/shorts/bZ4IpZhdZrM)
 
 `+` Shows a tool use
+
+Watch the youtube video here: https://youtube.com/shorts/bZ4IpZhdZrM
 
 ## Logfire demo
 
