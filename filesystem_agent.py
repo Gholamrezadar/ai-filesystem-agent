@@ -11,12 +11,12 @@ from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.models.gemini import GeminiModel 
 from pydantic_ai.providers.openai import OpenAIProvider
 import logfire
-
 from arithmetic_eval import evaluate
 
 ## Setup
 load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+os.environ["LOGFIRE_CONSOLE"] = "false"
 logfire.configure(send_to_logfire='if-token-present')
 logfire.instrument_pydantic_ai()
 
@@ -85,7 +85,7 @@ async def create_file(ctx: RunContext[None], path: str, content: str) -> str:
 
     # check if the file already exists
     if file_path.exists():
-        raise ValueError(f"File already exists: {path}")
+        raise ValueError(f"File {path} already exists.")
 
     # create the required directories if they don't exist
     file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -119,7 +119,7 @@ async def rename_file(ctx: RunContext[None], old_path: str, new_path: str) -> st
 
     # check if the file exists
     if not old_file_path.exists():
-        raise ValueError(f"File does not exist: {old_path}")
+        raise ValueError(f"File {old_path} does not exist.")
 
     # create the parent folders of new_file_path
     new_file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -144,11 +144,11 @@ async def delete_file(ctx: RunContext[None], path: str) -> str:
 
     # check if the starts with test_folder (to prevent directory traversal)
     if file_path.parts[0] != "test_folder":
-        raise ValueError(f"For security reasons, the path must be relative to the test_folder directory.", file_path)
+        raise ValueError(f"For security reasons, the path must be relative to the test_folder directory.")
 
     # check if the file exists
     if not file_path.exists():
-        raise ValueError(f"File does not exist: {path}")
+        raise ValueError(f"File {path} does not exist.")
 
     # delete the file
     file_path.unlink()
@@ -181,21 +181,46 @@ def main():
     # print(response.usage())
 
     # delete_file tool test
-    print("- " * 10)
-    prompt = "Delete the file `a.txt`"
-    print("Prompt:", prompt)
-    response = agent.run_sync(prompt)
-    print(response.output)
-    print(response.usage())
+    # print("- " * 10)
+    # prompt = "Delete the file `a.txt`"
+    # print("Prompt:", prompt)
+    # response = agent.run_sync(prompt)
+    # print(response.output)
+    # print(response.usage())
 
     # REPL
-    # while True:
-    #     user_input = input(">> ")
-    #     response = agent.run_sync(user_input)
-    #     print("AI:", response.output)
-    #     print(response.usage())
-    #     print("- "*20)
+    def green(text):
+        return "\033[92m" + text + "\033[0m"
+    
+    def red(text):
+        return "\033[91m" + text + "\033[0m"
+    
+    print("\n-- Welcome to the filesystem agent. Chat with me to perform actions on the filesystem.")
+    print(f"-- Available tools: {green('calculator')}, {green('create_file')}, {green('rename_file')}, {green('delete_file')}")
+    print(f"-- Type {red('exit')} to exit the REPL.\n")
+    while True:
+        user_input = input(">> ")
 
+        if user_input == "exit":
+            break
+
+        # run agent
+        try:
+            response = agent.run_sync(user_input)
+        except Exception as e:
+            print(red("Error:"), red(str(e)))
+            print()
+            continue
+
+        # print tool calls
+        for message in response.new_messages():
+            if message.kind == "response":
+                for part in message.parts:
+                    if part.part_kind == "tool-call":
+                        print("+", green(part.tool_name), "args:", part.args)
+
+        # print AI response
+        print("AI:", response.output)
 
 if __name__ == "__main__":
     main()
